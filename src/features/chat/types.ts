@@ -14,3 +14,10 @@ export type Message = {
 }
 
 export type ConnectionStatus = 'idle' | 'online' | 'reconnecting'
+
+/** Префикс id сообщений, которые уже в ленте, но ещё не подтверждены API. */
+export const LOCAL_ID_PREFIX = 'local-'
+
+export function isLocalId(id: string): boolean {
+  return id.startsWith(LOCAL_ID_PREFIX)
+}

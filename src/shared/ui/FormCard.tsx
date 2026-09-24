@@ -8,7 +8,7 @@ export function FormCard({
 }: {
   title: string
   subtitle?: string
-  children: ReactNode
+  children?: ReactNode
 }) {
   return (
     <div className={styles.screen}>

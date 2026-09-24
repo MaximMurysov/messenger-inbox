@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { loggedOut } from '../auth/authSlice'
+import { loggedOut, sessionExpired } from '../auth/authSlice'
 import {
+  apiEchoReceived,
+  chatClosed,
   chatOpened,
   chatReducer,
   messageFailed,
   messageQueued,
   messageReceived,
+  messageRetrying,
   messageSent,
   messageStatusChanged,
 } from './chatSlice'
@@ -13,6 +16,7 @@ import type { ChatState } from './chatSlice'
 import type { Message } from './types'
 
 const CHAT_ID = '79991234567@c.us'
+const OTHER_CHAT_ID = '79990000000@c.us'
 
 function makeMessage(overrides: Partial<Message> = {}): Message {
   return {
@@ -26,44 +30,52 @@ function makeMessage(overrides: Partial<Message> = {}): Message {
   }
 }
 
+function makeLocal(overrides: Partial<Message> = {}): Message {
+  return makeMessage({
+    id: 'local-1',
+    direction: 'out',
+    status: 'pending',
+    ...overrides,
+  })
+}
+
 function openedState(): ChatState {
-  return chatReducer(
-    undefined,
-    chatOpened({ chatId: CHAT_ID, phone: '79991234567' }),
-  )
+  return chatReducer(undefined, chatOpened(CHAT_ID))
+}
+
+function ids(state: ChatState, chatId = CHAT_ID): string[] {
+  return (state.threads[chatId] ?? []).map((message) => message.id)
 }
 
 describe('chatSlice', () => {
-  it('открытие другого чата очищает ленту', () => {
-    const withMessage = chatReducer(
-      openedState(),
-      messageReceived(makeMessage()),
-    )
-    const other = chatReducer(
-      withMessage,
-      chatOpened({ chatId: '79990000000@c.us', phone: '79990000000' }),
-    )
+  it('закрытие и повторное открытие чата сохраняет переписку', () => {
+    let state = chatReducer(openedState(), messageReceived(makeMessage()))
+    state = chatReducer(state, chatClosed())
+    state = chatReducer(state, chatOpened(OTHER_CHAT_ID))
+    state = chatReducer(state, chatOpened(CHAT_ID))
 
-    expect(other.messages).toEqual([])
+    expect(state.chatId).toBe(CHAT_ID)
+    expect(ids(state)).toEqual(['ID1'])
   })
 
   it('не задваивает повторно доставленное уведомление', () => {
     let state = chatReducer(openedState(), messageReceived(makeMessage()))
     state = chatReducer(state, messageReceived(makeMessage()))
 
-    expect(state.messages).toHaveLength(1)
+    expect(ids(state)).toEqual(['ID1'])
   })
 
-  it('игнорирует сообщения из чужого чата', () => {
+  it('сообщение из другого чата не теряется, а ложится в его ленту', () => {
     const state = chatReducer(
       openedState(),
-      messageReceived(makeMessage({ chatId: '79990000000@c.us' })),
+      messageReceived(makeMessage({ id: 'B1', chatId: OTHER_CHAT_ID })),
     )
 
-    expect(state.messages).toEqual([])
+    expect(ids(state)).toEqual([])
+    expect(ids(state, OTHER_CHAT_ID)).toEqual(['B1'])
   })
 
-  it('держит ленту отсортированной по времени', () => {
+  it('держит порядок поступления, а не время из разных часов', () => {
     let state = chatReducer(
       openedState(),
       messageReceived(makeMessage({ id: 'B', timestamp: 2000 })),
@@ -73,74 +85,128 @@ describe('chatSlice', () => {
       messageReceived(makeMessage({ id: 'A', timestamp: 1000 })),
     )
 
-    expect(state.messages.map((message) => message.id)).toEqual(['A', 'B'])
+    expect(ids(state)).toEqual(['B', 'A'])
   })
 
   it('меняет локальный id на idMessage после отправки', () => {
-    let state = chatReducer(
-      openedState(),
-      messageQueued(
-        makeMessage({ id: 'local-1', direction: 'out', status: 'pending' }),
-      ),
-    )
+    let state = chatReducer(openedState(), messageQueued(makeLocal()))
     state = chatReducer(
       state,
-      messageSent({ localId: 'local-1', idMessage: 'SRV1' }),
+      messageSent({ chatId: CHAT_ID, localId: 'local-1', idMessage: 'SRV1' }),
     )
 
-    expect(state.messages[0]).toMatchObject({ id: 'SRV1', status: 'sent' })
+    expect(state.threads[CHAT_ID][0]).toMatchObject({
+      id: 'SRV1',
+      status: 'sent',
+    })
   })
 
-  it('не задваивает своё сообщение, когда API присылает его эхом', () => {
-    let state = chatReducer(
-      openedState(),
-      messageQueued(
-        makeMessage({ id: 'local-1', direction: 'out', status: 'pending' }),
-      ),
-    )
-    state = chatReducer(
-      state,
-      messageSent({ localId: 'local-1', idMessage: 'SRV1' }),
-    )
-    state = chatReducer(
-      state,
-      messageReceived(makeMessage({ id: 'SRV1', direction: 'out' })),
-    )
+  describe('эхо собственного сообщения', () => {
+    const echo = makeMessage({
+      id: 'SRV1',
+      direction: 'out',
+      status: 'sent',
+    })
 
-    expect(state.messages).toHaveLength(1)
+    it('после ответа на отправку не задваивает сообщение', () => {
+      let state = chatReducer(openedState(), messageQueued(makeLocal()))
+      state = chatReducer(
+        state,
+        messageSent({ chatId: CHAT_ID, localId: 'local-1', idMessage: 'SRV1' }),
+      )
+      state = chatReducer(state, apiEchoReceived(echo))
+
+      expect(ids(state)).toEqual(['SRV1'])
+    })
+
+    it('раньше ответа на отправку тоже не задваивает', () => {
+      let state = chatReducer(openedState(), messageQueued(makeLocal()))
+      state = chatReducer(state, apiEchoReceived(echo))
+      state = chatReducer(
+        state,
+        messageSent({ chatId: CHAT_ID, localId: 'local-1', idMessage: 'SRV1' }),
+      )
+
+      expect(ids(state)).toEqual(['SRV1'])
+      expect(state.threads[CHAT_ID][0].status).toBe('sent')
+    })
+
+    it('забирает сообщение, помеченное неудачным из-за оборванного ответа', () => {
+      let state = chatReducer(openedState(), messageQueued(makeLocal()))
+      state = chatReducer(
+        state,
+        messageFailed({ chatId: CHAT_ID, id: 'local-1' }),
+      )
+      state = chatReducer(state, apiEchoReceived(echo))
+
+      expect(ids(state)).toEqual(['SRV1'])
+      expect(state.threads[CHAT_ID][0].status).toBe('sent')
+    })
+
+    it('два одинаковых текста разбираются по порядку', () => {
+      let state = chatReducer(openedState(), messageQueued(makeLocal()))
+      state = chatReducer(state, messageQueued(makeLocal({ id: 'local-2' })))
+      state = chatReducer(state, apiEchoReceived({ ...echo, id: 'SRV1' }))
+      state = chatReducer(state, apiEchoReceived({ ...echo, id: 'SRV2' }))
+
+      expect(ids(state)).toEqual(['SRV1', 'SRV2'])
+    })
+
+    it('сообщение с другим текстом добавляется как новое', () => {
+      let state = chatReducer(openedState(), messageQueued(makeLocal()))
+      state = chatReducer(state, apiEchoReceived({ ...echo, text: 'Другое' }))
+
+      expect(ids(state)).toEqual(['local-1', 'SRV1'])
+    })
+
+    it('не трогает сообщение, отправленное с телефона', () => {
+      let state = chatReducer(openedState(), messageQueued(makeLocal()))
+      state = chatReducer(state, messageReceived(echo))
+
+      expect(ids(state)).toEqual(['local-1', 'SRV1'])
+    })
   })
 
-  it('помечает неудачную отправку и обновляет статус доставки', () => {
-    let state = chatReducer(
-      openedState(),
-      messageQueued(
-        makeMessage({ id: 'local-1', direction: 'out', status: 'pending' }),
-      ),
+  it('«Повторить» оставляет сообщение на месте и снова делает его ожидающим', () => {
+    let state = chatReducer(openedState(), messageQueued(makeLocal()))
+    state = chatReducer(state, messageReceived(makeMessage()))
+    state = chatReducer(
+      state,
+      messageFailed({ chatId: CHAT_ID, id: 'local-1' }),
     )
-    expect(
-      chatReducer(state, messageFailed('local-1')).messages[0].status,
-    ).toBe('failed')
+    expect(state.threads[CHAT_ID][0].status).toBe('failed')
 
     state = chatReducer(
       state,
-      messageSent({ localId: 'local-1', idMessage: 'SRV1' }),
+      messageRetrying({ chatId: CHAT_ID, id: 'local-1' }),
+    )
+    expect(ids(state)).toEqual(['local-1', 'ID1'])
+    expect(state.threads[CHAT_ID][0].status).toBe('pending')
+  })
+
+  it('обновляет статус доставки по idMessage', () => {
+    let state = chatReducer(openedState(), messageQueued(makeLocal()))
+    state = chatReducer(
+      state,
+      messageSent({ chatId: CHAT_ID, localId: 'local-1', idMessage: 'SRV1' }),
     )
     state = chatReducer(
       state,
       messageStatusChanged({ idMessage: 'SRV1', status: 'read' }),
     )
 
-    expect(state.messages[0].status).toBe('read')
+    expect(state.threads[CHAT_ID][0].status).toBe('read')
   })
 
-  it('выход из аккаунта сбрасывает чат', () => {
-    const state = chatReducer(openedState(), loggedOut())
+  it.each([
+    ['выход из аккаунта', loggedOut()],
+    ['истёкшая сессия', sessionExpired('нет доступа')],
+  ])('%s сбрасывает чат', (_name, action) => {
+    const state = chatReducer(
+      chatReducer(openedState(), messageReceived(makeMessage())),
+      action,
+    )
 
-    expect(state).toEqual({
-      chatId: null,
-      phone: null,
-      messages: [],
-      connection: 'idle',
-    })
+    expect(state).toEqual({ chatId: null, threads: {}, connection: 'idle' })
   })
 })

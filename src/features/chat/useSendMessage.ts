@@ -4,14 +4,15 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks'
 import {
   messageFailed,
   messageQueued,
-  messageRemoved,
+  messageRetrying,
   messageSent,
 } from './chatSlice'
 import { selectChatId } from './selectors'
+import { LOCAL_ID_PREFIX } from './types'
 import type { Message } from './types'
 
 function createLocalId(): string {
-  return `local-${crypto.randomUUID()}`
+  return `${LOCAL_ID_PREFIX}${crypto.randomUUID()}`
 }
 
 /**
@@ -21,7 +22,22 @@ function createLocalId(): string {
 export function useSendMessage() {
   const dispatch = useAppDispatch()
   const chatId = useAppSelector(selectChatId)
-  const [sendMessage, { isLoading }] = useSendMessageMutation()
+  const [sendMessage] = useSendMessageMutation()
+
+  const deliver = useCallback(
+    async (targetChatId: string, localId: string, text: string) => {
+      try {
+        const { idMessage } = await sendMessage({
+          chatId: targetChatId,
+          message: text,
+        }).unwrap()
+        dispatch(messageSent({ chatId: targetChatId, localId, idMessage }))
+      } catch {
+        dispatch(messageFailed({ chatId: targetChatId, id: localId }))
+      }
+    },
+    [dispatch, sendMessage],
+  )
 
   const send = useCallback(
     async (text: string) => {
@@ -39,24 +55,19 @@ export function useSendMessage() {
           status: 'pending',
         }),
       )
-
-      try {
-        const { idMessage } = await sendMessage({ chatId, message }).unwrap()
-        dispatch(messageSent({ localId, idMessage }))
-      } catch {
-        dispatch(messageFailed(localId))
-      }
+      await deliver(chatId, localId, message)
     },
-    [chatId, dispatch, sendMessage],
+    [chatId, deliver, dispatch],
   )
 
+  /** Повтор не пересоздаёт сообщение: оно остаётся на своём месте в ленте. */
   const retry = useCallback(
     (failed: Message) => {
-      dispatch(messageRemoved(failed.id))
-      return send(failed.text)
+      dispatch(messageRetrying({ chatId: failed.chatId, id: failed.id }))
+      return deliver(failed.chatId, failed.id, failed.text)
     },
-    [dispatch, send],
+    [deliver, dispatch],
   )
 
-  return { send, retry, isSending: isLoading }
+  return { send, retry }
 }

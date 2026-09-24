@@ -22,7 +22,7 @@ export function NewChatForm() {
     }
 
     setError(null)
-    dispatch(chatOpened({ chatId: toChatId(digits), phone: digits }))
+    dispatch(chatOpened(toChatId(digits)))
   }
 
   return (

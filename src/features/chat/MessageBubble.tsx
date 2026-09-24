@@ -14,6 +14,7 @@ function StatusIcon({ status }: { status: Message['status'] }) {
         fill="none"
         stroke="currentColor"
         strokeWidth="1.3"
+        role="img"
         aria-label="отправляется"
       >
         <circle cx="8" cy="8" r="6" />
@@ -36,6 +37,7 @@ function StatusIcon({ status }: { status: Message['status'] }) {
       strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      role="img"
       aria-label={status === 'read' ? 'прочитано' : 'отправлено'}
     >
       <path d="M1 6.5 4.2 9.8 10.5 2.4" />

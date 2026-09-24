@@ -35,7 +35,8 @@ export type ApiNotificationBody = {
 
 export type ApiNotification = {
   receiptId: number
-  body: ApiNotificationBody
+  /** Формально всегда есть, но разбираем уведомление, не полагаясь на это. */
+  body: ApiNotificationBody | null
 }
 
 export type DeleteNotificationResponse = {
