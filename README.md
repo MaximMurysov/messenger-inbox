@@ -32,7 +32,7 @@ pnpm install
 pnpm dev
 ```
 
-Приложение откроется на http://localhost:5173/.
+Приложение откроется на http://127.0.0.1:5173/.
 
 ### Что нужно от GREEN-API
 
@@ -51,7 +51,7 @@ pnpm dev
 
 | Переменная | Назначение |
 | --- | --- |
-| `VITE_API_BASE_URL` | Адрес API. По умолчанию вычисляется из `idInstance`: `https://{первые 4 цифры}.api.greenapi.com` |
+| `VITE_API_BASE_URL` | Адрес API. По умолчанию вычисляется из `idInstance`: `https://{первые 4 цифры}.api.green-api.com` |
 
 ## Команды
 

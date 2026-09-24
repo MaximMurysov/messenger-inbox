@@ -14,13 +14,13 @@ import type {
 } from './types'
 
 /**
- * Хост инстанса GREEN-API: https://{первые 4 цифры idInstance}.api.greenapi.com.
+ * Хост инстанса GREEN-API: https://{первые 4 цифры idInstance}.api.green-api.com.
  * Перекрывается переменной окружения VITE_API_BASE_URL.
  */
 function apiBaseUrl(credentials: Credentials): string {
   const override = import.meta.env.VITE_API_BASE_URL
   if (override) return override.replace(/\/$/, '')
-  return `https://${credentials.idInstance.slice(0, 4)}.api.greenapi.com`
+  return `https://${credentials.idInstance.slice(0, 4)}.api.green-api.com`
 }
 
 /** Сколько секунд API держит открытым запрос за входящими уведомлениями. */
