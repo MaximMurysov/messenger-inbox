@@ -1,32 +1,97 @@
-# React + TypeScript + Vite
+# Мессенджер — веб-клиент чата на React
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Интерфейс для отправки и получения текстовых сообщений в WhatsApp через
+[GREEN-API](https://green-api.com/). Внешний вид чата взят за прототип с
+WhatsApp Web, набор функций — минимальный: вход по учётным данным инстанса,
+создание чата по номеру телефона, переписка текстом.
 
-Currently, two official plugins are available:
+## Возможности
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Вход по `idInstance` и `apiTokenInstance` с проверкой состояния инстанса.
+- Создание чата по номеру телефона получателя.
+- Отправка текстовых сообщений — метод
+  [`SendMessage`](https://green-api.com/v3/docs/api/sending/SendMessage/).
+- Получение входящих — длинный опрос очереди уведомлений по
+  [HTTP API](https://green-api.com/v3/docs/api/receiving/technology-http-api/):
+  `ReceiveNotification` + обязательный `DeleteNotification`.
+- Статусы исходящих сообщений (отправляется / отправлено / доставлено /
+  прочитано / ошибка с повтором отправки).
+- Переписка и сессия переживают перезагрузку страницы.
 
-## React Compiler
+## Стек
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+React 19, TypeScript, Vite, Redux Toolkit + RTK Query, CSS Modules, Vitest.
+Пакетный менеджер — pnpm.
 
-## Expanding the Oxlint configuration
+## Локальный запуск
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+Нужен Node.js 20+ и pnpm.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+pnpm install
+pnpm dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Приложение откроется на http://localhost:5173/.
+
+### Что нужно от GREEN-API
+
+1. Зарегистрируйтесь на [green-api.com](https://green-api.com/) и создайте
+   инстанс в личном кабинете.
+2. Авторизуйте инстанс — отсканируйте QR-код приложением WhatsApp на телефоне.
+   Состояние инстанса должно быть `authorized`.
+3. В настройках инстанса включите получение входящих уведомлений
+   (`Входящие уведомления` / `incomingWebhook` — `Да`), иначе очередь
+   уведомлений будет пустой и ответы собеседника не придут.
+4. Скопируйте `idInstance` и `apiTokenInstance` и введите их на экране входа.
+
+### Переменные окружения
+
+Все опциональны, файл `.env` создаётся из `.env.example`.
+
+| Переменная | Назначение |
+| --- | --- |
+| `VITE_API_BASE_URL` | Адрес API. По умолчанию вычисляется из `idInstance`: `https://{первые 4 цифры}.api.greenapi.com` |
+
+## Команды
+
+| Команда | Что делает |
+| --- | --- |
+| `pnpm dev` | Дев-сервер с горячей перезагрузкой |
+| `pnpm build` | Проверка типов и продакшен-сборка в `dist/` |
+| `pnpm preview` | Локальный просмотр собранного приложения |
+| `pnpm lint` | Линтер (oxlint) |
+| `pnpm test` | Юнит-тесты (Vitest) |
+
+## Как это устроено
+
+```
+src/
+  api/          слой GREEN-API: RTK Query, разбор уведомлений
+  app/          стор, типизированные хуки, сохранение в localStorage
+  features/
+    auth/       вход по учётным данным
+    chat/       состояние чата, длинный опрос, экран переписки
+  shared/       работа с номерами и временем, общие UI-примитивы
+```
+
+Ключевые места:
+
+- `src/api/messengerApi.ts` — единственное место, где учётные данные попадают
+  в URL запроса; смена адресов эндпоинтов затрагивает только этот файл.
+- `src/features/chat/usePollNotifications.ts` — цикл длинного опроса:
+  экспоненциальная пауза при ошибках сети, остановка на скрытой вкладке,
+  удаление обработанного уведомления из очереди.
+- `src/features/chat/chatSlice.ts` — лента сообщений; входящие
+  дедуплицируются по `idMessage`, поэтому повторная доставка уведомления
+  не задваивает сообщение.
+
+## Ограничения
+
+- Только текстовые сообщения: медиа, файлы и групповые чаты не поддерживаются.
+- Один открытый чат за раз, списка диалогов нет — так задумано по ТЗ
+  («максимально простой интерфейс»).
+- История подтягивается не из WhatsApp, а накапливается во время работы
+  приложения и хранится в `localStorage` браузера.
+- Учётные данные инстанса хранятся в `localStorage`. Для тестового задания
+  это приемлемо, для продакшена токен не должен попадать в браузер.

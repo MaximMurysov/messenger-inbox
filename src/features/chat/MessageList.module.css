@@ -1,0 +1,37 @@
+.list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 6%;
+  /* Фон переписки: тёплая подложка с едва заметным узором. */
+  background-color: var(--wa-chat-bg);
+  background-image: radial-gradient(
+    rgba(11, 20, 26, 0.045) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+}
+
+.empty {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.daySeparator {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0;
+}
+
+.daySeparator span {
+  background: #fff;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 7px;
+  box-shadow: var(--bubble-shadow);
+  text-transform: uppercase;
+}
