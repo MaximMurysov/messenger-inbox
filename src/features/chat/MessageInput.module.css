@@ -1,0 +1,41 @@
+.bar {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--wa-panel);
+}
+
+.textarea {
+  flex: 1;
+  resize: none;
+  max-height: 120px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: var(--radius-input);
+  background: #fff;
+  outline: none;
+  line-height: 20px;
+}
+
+.send {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 50%;
+  background: var(--wa-accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+
+.send:hover:not(:disabled) {
+  background: var(--wa-accent-hover);
+}
+
+.send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

@@ -1,0 +1,51 @@
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--wa-header);
+  color: var(--wa-header-text);
+  flex: none;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.info {
+  min-width: 0;
+  flex: 1;
+}
+
+.name {
+  font-size: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status {
+  font-size: 12px;
+  color: var(--wa-header-muted);
+}
+
+.action {
+  background: none;
+  border: none;
+  color: var(--wa-header-text);
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.action:hover {
+  background: rgba(255, 255, 255, 0.15);
+}

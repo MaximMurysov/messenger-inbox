@@ -1,0 +1,27 @@
+:root {
+  /* Палитра WhatsApp */
+  --wa-header: #008069;
+  --wa-header-text: #ffffff;
+  --wa-header-muted: rgba(255, 255, 255, 0.75);
+  --wa-chat-bg: #efeae2;
+  --wa-bubble-out: #d9fdd3;
+  --wa-bubble-in: #ffffff;
+  --wa-panel: #f0f2f5;
+  --wa-accent: #00a884;
+  --wa-accent-hover: #017561;
+  --wa-tick-read: #53bdeb;
+  --wa-danger: #d93025;
+
+  --text: #111b21;
+  --text-muted: #667781;
+  --border: #e9edef;
+  --bubble-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  --panel-shadow: 0 6px 24px rgba(11, 20, 26, 0.12);
+
+  --radius-bubble: 8px;
+  --radius-panel: 12px;
+  --radius-input: 22px;
+
+  --sans:
+    'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Roboto, sans-serif;
+}

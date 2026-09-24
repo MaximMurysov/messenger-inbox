@@ -1,0 +1,23 @@
+.screen {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(var(--wa-header) 0 127px, var(--wa-panel) 127px);
+}
+
+.window {
+  width: 100%;
+  max-width: 1000px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--wa-chat-bg);
+  box-shadow: var(--panel-shadow);
+}
+
+@media (min-width: 1000px) {
+  .window {
+    height: calc(100% - 38px);
+    margin: 19px 0;
+  }
+}

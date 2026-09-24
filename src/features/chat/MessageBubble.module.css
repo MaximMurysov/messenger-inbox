@@ -1,0 +1,76 @@
+.row {
+  display: flex;
+  padding: 1px 0;
+}
+
+.in {
+  justify-content: flex-start;
+}
+
+.out {
+  justify-content: flex-end;
+}
+
+.bubble {
+  max-width: min(75%, 520px);
+  padding: 6px 9px 8px;
+  border-radius: var(--radius-bubble);
+  box-shadow: var(--bubble-shadow);
+  position: relative;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.in .bubble {
+  background: var(--wa-bubble-in);
+  border-top-left-radius: 0;
+}
+
+.out .bubble {
+  background: var(--wa-bubble-out);
+  border-top-right-radius: 0;
+}
+
+.text {
+  font-size: 14.2px;
+  line-height: 19px;
+  /* Место под время в правом нижнем углу, как в WhatsApp. */
+  padding-right: 58px;
+}
+
+.meta {
+  position: absolute;
+  right: 9px;
+  bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.tick {
+  display: block;
+}
+
+.read {
+  color: var(--wa-tick-read);
+}
+
+.failedNote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--wa-danger);
+}
+
+.retry {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--wa-danger);
+  font-size: 11px;
+  text-decoration: underline;
+}
