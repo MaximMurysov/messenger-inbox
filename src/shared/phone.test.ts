@@ -19,6 +19,11 @@ describe('normalizePhone', () => {
   it('не трогает номера других стран', () => {
     expect(normalizePhone('+1 202 555 0143')).toBe('12025550143')
   })
+
+  it('не превращает международный номер с 8 в российский', () => {
+    expect(normalizePhone('+84 912 345 678')).toBe('84912345678')
+    expect(normalizePhone('  +8 800 555 35 35')).toBe('88005553535')
+  })
 })
 
 describe('isValidPhone', () => {

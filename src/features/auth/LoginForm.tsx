@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { isAuthError } from '../../api/errors'
 import { useLazyGetStateInstanceQuery } from '../../api/messengerApi'
-import { useAppDispatch } from '../../app/hooks'
+import { useAppDispatch, useAppSelector } from '../../app/hooks'
 import { FormCard } from '../../shared/ui/FormCard'
 import styles from '../../shared/ui/FormCard.module.css'
-import { credentialsSet, loggedOut } from './authSlice'
+import { selectSessionError } from '../chat/selectors'
+import { credentialsSet, sessionErrorDismissed } from './authSlice'
 
 export function LoginForm() {
   const dispatch = useAppDispatch()
+  const sessionError = useAppSelector(selectSessionError)
   const [checkInstance, { isFetching }] = useLazyGetStateInstanceQuery()
   const [idInstance, setIdInstance] = useState('')
   const [apiTokenInstance, setApiTokenInstance] = useState('')
@@ -16,6 +19,7 @@ export function LoginForm() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
+    dispatch(sessionErrorDismissed())
 
     const credentials = {
       idInstance: idInstance.trim(),
@@ -25,21 +29,31 @@ export function LoginForm() {
       setError('Заполните оба поля')
       return
     }
+    // Первые 4 цифры idInstance определяют хост API, так что это не придирка.
+    if (!/^\d{4,}$/.test(credentials.idInstance)) {
+      setError('idInstance — это число, например 1101234567')
+      return
+    }
 
-    // Запросы берут учётные данные из стора, поэтому сначала сохраняем их,
-    // а потом проверяем — при неудаче откатываем.
-    dispatch(credentialsSet(credentials))
+    // Учётные данные попадают в стор только после проверки: форма остаётся на
+    // экране и может показать причину отказа.
     try {
-      const { stateInstance } = await checkInstance().unwrap()
+      const { stateInstance } = await checkInstance(credentials).unwrap()
       if (stateInstance !== 'authorized') {
-        dispatch(loggedOut())
         setError(`Инстанс не авторизован (состояние: ${stateInstance})`)
+        return
       }
-    } catch {
-      dispatch(loggedOut())
-      setError('Не удалось подключиться. Проверьте idInstance и токен.')
+      dispatch(credentialsSet(credentials))
+    } catch (failure) {
+      setError(
+        isAuthError(failure)
+          ? 'API не принял idInstance или токен. Проверьте, что скопировали их полностью.'
+          : 'Не удалось подключиться. Проверьте сеть, idInstance и токен.',
+      )
     }
   }
+
+  const shownError = error ?? sessionError
 
   return (
     <FormCard
@@ -79,7 +93,11 @@ export function LoginForm() {
           </span>
         </div>
 
-        {error && <p className={styles.error}>{error}</p>}
+        {shownError && (
+          <p className={styles.error} role="alert">
+            {shownError}
+          </p>
+        )}
 
         <button className={styles.submit} type="submit" disabled={isFetching}>
           {isFetching ? 'Проверяем…' : 'Подключиться'}

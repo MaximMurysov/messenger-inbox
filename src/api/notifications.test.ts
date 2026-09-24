@@ -31,6 +31,7 @@ describe('parseNotification', () => {
         timestamp: 1700000000000,
         status: 'delivered',
       },
+      sentViaApi: false,
     })
   })
 
@@ -51,7 +52,50 @@ describe('parseNotification', () => {
     expect(event).toMatchObject({
       kind: 'message',
       message: { direction: 'out', text: 'Ссылка', status: 'sent' },
+      sentViaApi: true,
     })
+  })
+
+  it('исходящее с телефона не считается эхом отправки через API', () => {
+    const event = parseNotification(
+      notification({
+        typeWebhook: 'outgoingMessageReceived',
+        timestamp: 1700000000,
+        idMessage: 'PH1',
+        senderData: { chatId: '79991234567@c.us' },
+        messageData: {
+          typeMessage: 'textMessage',
+          textMessageData: { textMessage: 'С телефона' },
+        },
+      }),
+    )
+
+    expect(event).toMatchObject({ kind: 'message', sentViaApi: false })
+  })
+
+  it('не падает на уведомлении без тела', () => {
+    expect(parseNotification({ receiptId: 1, body: null })).toEqual({
+      kind: 'ignored',
+    })
+  })
+
+  it('подставляет текущее время, если сервер не прислал timestamp', () => {
+    const event = parseNotification(
+      notification({
+        typeWebhook: 'incomingMessageReceived',
+        idMessage: 'NOTIME',
+        senderData: { chatId: '79991234567@c.us' },
+        messageData: {
+          typeMessage: 'textMessage',
+          textMessageData: { textMessage: 'Привет' },
+        },
+      } as unknown as ApiNotification['body']),
+    )
+
+    expect(event).toMatchObject({ kind: 'message' })
+    if (event.kind === 'message') {
+      expect(Number.isFinite(event.message.timestamp)).toBe(true)
+    }
   })
 
   it('переводит статус доставки в статус сообщения', () => {

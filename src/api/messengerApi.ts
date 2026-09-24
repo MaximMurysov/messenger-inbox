@@ -17,7 +17,7 @@ import type {
  * Хост инстанса GREEN-API: https://{первые 4 цифры idInstance}.api.green-api.com.
  * Перекрывается переменной окружения VITE_API_BASE_URL.
  */
-function apiBaseUrl(credentials: Credentials): string {
+export function apiBaseUrl(credentials: Credentials): string {
   const override = import.meta.env.VITE_API_BASE_URL
   if (override) return override.replace(/\/$/, '')
   return `https://${credentials.idInstance.slice(0, 4)}.api.green-api.com`
@@ -30,20 +30,30 @@ export const RECEIVE_TIMEOUT_SECONDS = 20
  * Собирает адрес вида {хост}/waInstance{id}/{метод}/{токен}/{хвост}.
  * Единственное место, где учётные данные попадают в URL.
  */
-function instanceUrl(credentials: Credentials, url: string): string {
+export function instanceUrl(credentials: Credentials, url: string): string {
   const [method, ...rest] = url.split('/')
   const suffix = rest.length > 0 ? `/${rest.join('/')}` : ''
-  return `${apiBaseUrl(credentials)}/waInstance${credentials.idInstance}/${method}/${credentials.apiTokenInstance}${suffix}`
+  const id = encodeURIComponent(credentials.idInstance)
+  const token = encodeURIComponent(credentials.apiTokenInstance)
+  return `${apiBaseUrl(credentials)}/waInstance${id}/${method}/${token}${suffix}`
 }
+
+/**
+ * Запрос к API. Обычно учётные данные берутся из стора, но при входе их ещё
+ * там нет — тогда экран входа передаёт их явно в поле instance.
+ */
+export type ApiRequest = FetchArgs & { instance?: Credentials }
 
 const rawBaseQuery = fetchBaseQuery({ baseUrl: '/' })
 
 const baseQueryWithCredentials: BaseQueryFn<
-  string | FetchArgs,
+  string | ApiRequest,
   unknown,
   FetchBaseQueryError
 > = (args, api, extraOptions) => {
-  const { credentials } = (api.getState() as RootState).auth
+  const request: ApiRequest = typeof args === 'string' ? { url: args } : args
+  const { instance, ...fetchArgs } = request
+  const credentials = instance ?? (api.getState() as RootState).auth.credentials
   if (!credentials) {
     return {
       error: {
@@ -53,9 +63,8 @@ const baseQueryWithCredentials: BaseQueryFn<
     }
   }
 
-  const request = typeof args === 'string' ? { url: args } : args
   return rawBaseQuery(
-    { ...request, url: instanceUrl(credentials, request.url) },
+    { ...fetchArgs, url: instanceUrl(credentials, fetchArgs.url) },
     api,
     extraOptions,
   )
@@ -72,6 +81,8 @@ export const messengerApi = createApi({
     /**
      * Длинный опрос. Возвращает null, если за время ожидания ничего не пришло.
      * Ответ не кэшируем: каждое уведомление должно быть получено ровно один раз.
+     * Ключ кэша общий для всех инстансов, поэтому при выходе стор сбрасывается
+     * через resetApiState (см. app/store.ts), а опрос идёт только пока открыт чат.
      */
     receiveNotification: build.query<ApiNotification | null, void>({
       query: () => ({
@@ -90,9 +101,10 @@ export const messengerApi = createApi({
       }),
     }),
 
-    /** Состояние инстанса — используем для проверки учётных данных при входе. */
-    getStateInstance: build.query<{ stateInstance: string }, void>({
-      query: () => ({ url: 'getStateInstance' }),
+    /** Состояние инстанса — проверка учётных данных, которые передаются явно. */
+    getStateInstance: build.query<{ stateInstance: string }, Credentials>({
+      query: (instance) => ({ url: 'getStateInstance', instance }),
+      keepUnusedDataFor: 0,
     }),
   }),
 })

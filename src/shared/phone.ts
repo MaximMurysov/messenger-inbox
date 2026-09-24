@@ -1,10 +1,15 @@
 /** Номер телефона в виде одних только цифр, например "79991234567". */
 export type PhoneDigits = string
 
-/** Убирает всё, кроме цифр, и приводит российские номера с 8 к формату с 7. */
+/**
+ * Убирает всё, кроме цифр. Российский номер, начатый с 8, приводит к формату
+ * с 7 — но только если пользователь не написал «+»: с плюсом код страны уже
+ * указан, и, например, +84… (Вьетнам) нельзя превращать в +74….
+ */
 export function normalizePhone(input: string): PhoneDigits {
   const digits = input.replace(/\D/g, '')
-  if (digits.length === 11 && digits.startsWith('8')) {
+  const hasCountryCode = input.trim().startsWith('+')
+  if (!hasCountryCode && digits.length === 11 && digits.startsWith('8')) {
     return `7${digits.slice(1)}`
   }
   return digits

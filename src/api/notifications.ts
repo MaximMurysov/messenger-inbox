@@ -3,7 +3,12 @@ import type { ApiMessageData, ApiNotification } from './types'
 
 /** Что уведомление значит для нашего чата. */
 export type NotificationEvent =
-  | { kind: 'message'; message: Message }
+  | {
+      kind: 'message'
+      message: Message
+      /** Отправлено через API — значит, это эхо нашего же сообщения. */
+      sentViaApi: boolean
+    }
   | { kind: 'status'; idMessage: string; status: MessageStatus }
   | { kind: 'ignored' }
 
@@ -33,6 +38,7 @@ export function parseNotification(
   notification: ApiNotification,
 ): NotificationEvent {
   const { body } = notification
+  if (!body) return { kind: 'ignored' }
 
   switch (body.typeWebhook) {
     case 'incomingMessageReceived':
@@ -44,6 +50,10 @@ export function parseNotification(
 
       const direction =
         body.typeWebhook === 'incomingMessageReceived' ? 'in' : 'out'
+      // Без времени от сервера лента остаётся читаемой: берём текущее.
+      const timestamp = Number.isFinite(body.timestamp)
+        ? body.timestamp * 1000
+        : Date.now()
 
       return {
         kind: 'message',
@@ -52,9 +62,10 @@ export function parseNotification(
           chatId,
           text,
           direction,
-          timestamp: body.timestamp * 1000,
+          timestamp,
           status: direction === 'in' ? 'delivered' : 'sent',
         },
+        sentViaApi: body.typeWebhook === 'outgoingAPIMessageReceived',
       }
     }
 

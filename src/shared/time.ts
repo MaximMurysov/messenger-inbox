@@ -10,11 +10,13 @@ const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
 
 /** Время в углу баббла: 14:05. */
 export function formatTime(timestamp: number): string {
+  if (!Number.isFinite(timestamp)) return ''
   return timeFormatter.format(timestamp)
 }
 
 /** Подпись разделителя дней в ленте. */
 export function formatDaySeparator(timestamp: number): string {
+  if (!Number.isFinite(timestamp)) return ''
   const date = new Date(timestamp)
   const today = new Date()
   const yesterday = new Date(today)

@@ -7,7 +7,7 @@ import { useSendMessage } from './useSendMessage'
 
 export function ChatScreen() {
   const { send, retry } = useSendMessage()
-  usePollNotifications(true)
+  usePollNotifications()
 
   return (
     <div className={styles.screen}>
